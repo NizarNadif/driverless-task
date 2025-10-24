@@ -1,6 +1,8 @@
 {
 	"SourceFiles": [
 		"C:\\Users\\nizar\\Documents\\Unreal Projects\\DriverlessTask\\Source\\DriverlessTask\\DriverlessTask.Build.cs",
+		"C:\\Users\\nizar\\Documents\\Unreal Projects\\DriverlessTask\\Plugins\\VisualStudioTools\\Source\\VisualStudioBlueprintDebuggerHelper\\VisualStudioBlueprintDebuggerHelper.Build.cs",
+		"C:\\Users\\nizar\\Documents\\Unreal Projects\\DriverlessTask\\Plugins\\VisualStudioTools\\Source\\VisualStudioTools\\VisualStudioTools.Build.cs",
 		"C:\\Users\\nizar\\Documents\\Unreal Projects\\DriverlessTask\\Source\\DriverlessTask.Target.cs",
 		"C:\\Users\\nizar\\Documents\\Unreal Projects\\DriverlessTask\\Source\\DriverlessTaskEditor.Target.cs"
 	],
