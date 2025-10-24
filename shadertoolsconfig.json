@@ -1,0 +1,17 @@
+{
+  "shaderModel": "6_0",
+  "includeDirectories": [
+    "Shaders",
+    "C:/Program Files/Epic Games/UE_5.6/Engine/Shaders",
+    "C:/Program Files/Epic Games/UE_5.6/Engine/Source/Runtime"
+  ],
+  "files": [
+    "**/*.usf",
+    "**/*.hlsl",
+    "**/*.fx"
+  ],
+  "defines": [
+    "UE_SHADER=1",
+    "UE_BUILD=1"
+  ]
+}
