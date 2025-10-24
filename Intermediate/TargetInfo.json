@@ -1,0 +1,14 @@
+{
+	"Targets": [
+		{
+			"Name": "DriverlessTask",
+			"Path": "..\\Source\\DriverlessTask.Target.cs",
+			"Type": "Game"
+		},
+		{
+			"Name": "DriverlessTaskEditor",
+			"Path": "..\\Source\\DriverlessTaskEditor.Target.cs",
+			"Type": "Editor"
+		}
+	]
+}

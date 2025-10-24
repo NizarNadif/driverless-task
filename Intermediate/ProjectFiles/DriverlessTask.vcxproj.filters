@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="..\..\DriverlessTask.uproject" />
+    <Filter Include="Source">
+      <UniqueIdentifier>{F31BBDD1-B3E8-3BCC-9652-680E16935819}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Source\DriverlessTask.Target.cs">
+      <Filter>Source</Filter>
+    </None>
+    <None Include="..\..\Source\DriverlessTaskEditor.Target.cs">
+      <Filter>Source</Filter>
+    </None>
+    <Filter Include="Config">
+      <UniqueIdentifier>{FA535FFB-25E1-3D20-B416-52F9BE21E06E}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Config\DefaultEditor.ini">
+      <Filter>Config</Filter>
+    </None>
+    <None Include="..\..\Config\DefaultEngine.ini">
+      <Filter>Config</Filter>
+    </None>
+    <None Include="..\..\Config\DefaultGame.ini">
+      <Filter>Config</Filter>
+    </None>
+    <None Include="..\..\Config\DefaultInput.ini">
+      <Filter>Config</Filter>
+    </None>
+    <Filter Include="Source\DriverlessTask">
+      <UniqueIdentifier>{A53F965C-0191-304A-B79A-818EA24FE025}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Source\DriverlessTask\DriverlessTask.Build.cs">
+      <Filter>Source\DriverlessTask</Filter>
+    </None>
+    <ClCompile Include="..\..\Source\DriverlessTask\DriverlessTask.cpp">
+      <Filter>Source\DriverlessTask</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\Source\DriverlessTask\DriverlessTask.h">
+      <Filter>Source\DriverlessTask</Filter>
+    </ClInclude>
+    <ClCompile Include="..\..\Source\DriverlessTask\TempActor.cpp">
+      <Filter>Source\DriverlessTask</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\Source\DriverlessTask\TempActor.h">
+      <Filter>Source\DriverlessTask</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
