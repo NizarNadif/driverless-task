@@ -11,6 +11,7 @@
 #include "Components/SplineComponent.h"
 #include "LandscapeSplineActor.h"
 #include "GameFramework/Pawn.h"
+#include "Kismet/KismetMathLibrary.h"
 
 #include "SplineFollowerComponent.generated.h"
 
@@ -28,12 +29,31 @@ public:
 	USplineFollowerComponent();
 
 	// The spline track to follow (to set in the editor)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Setup")
 	AActor* TargetTrackActor;
 
-	// Lookahead distance (cm) for steering
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	float LookAheadDistance = 1500.0f;
+
+	/* TUNING PARAMS (cm or seconds) */
+
+	// look-ahead distance (cm) to start braking. It should be long
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
+	float BrakingLookAhead = 3000.0f;
+
+	// MINIMUM steering look-ahead (for sharp turns)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
+	float MinLookAheadDistance = 800.0f;
+
+	// MAXIMUM steering look-ahead (for straights)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
+	float MaxLookAheadDistance = 2000.0f;
+
+	// how sharp a turn needs to be (dot product) to trigger full braking. 0.9 = gentle -> 0.5 = sharp
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
+	float BrakingSharpness = 0.8f;
+
+	// "stuck" time (near zero speed) before reversing.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
+	float MaxStuckTime = 2.0f;
 
 protected:
 	// Called when the game starts
@@ -49,4 +69,8 @@ private:
 	
 	UPROPERTY()
 	USplineComponent* SplineToFollow;
+
+	// State variables for recovery
+	float StuckTime = 0.0f;
+	bool bIsReversing = false;
 };
