@@ -2,6 +2,9 @@
 
 
 #include "SplineFollowerComponent.h"
+#include "Engine/Engine.h"
+// circles to see projected path points
+#include "DrawDebugHelpers.h"
 
 // Sets default values for this component's properties
 USplineFollowerComponent::USplineFollowerComponent()
@@ -27,6 +30,8 @@ void USplineFollowerComponent::BeginPlay()
 	if (OwnerPawn)
 	{
 		VehicleMovementComponent = Cast<UChaosVehicleMovementComponent>(OwnerPawn->GetMovementComponent());
+		PreviousLocation = OwnerPawn->GetActorLocation();
+		PreviousTarget = PreviousLocation;
 	}
 	else
 	{
@@ -94,34 +99,64 @@ void USplineFollowerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// Ensure all necessary components are valid
-	if (!OwnerPawn || !VehicleMovementComponent || !SplineToFollow || bIsReversing)
-	{
+	if (!OwnerPawn || !VehicleMovementComponent || !SplineToFollow)
 		return;
+
+	if (GEngine)
+	{
+		float CurrentSpeed = FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) * 0.036f; //km/h
+
+		// Use a unique key (e.g., 1) to prevent spam
+		FString DebugMsg = FString::Printf(TEXT("Speed: %.1f km/h"), CurrentSpeed);
+		GEngine->AddOnScreenDebugMessage(1, 0.0f, FColor::Yellow, DebugMsg);
+
+		// Use key 2 for the state
+		FString State = TEXT("NORMAL");
+
+		if (StuckTime != 0.0f) {
+
+			if (StuckTime > 0.0f) { // either stuck
+				State = FString::Printf(TEXT("STUCK for %.2f / %.2f"), StuckTime, MaxStuckTime);
+			}
+			else { // or reversing
+				State = FString::Printf(TEXT("REVERSING for %.2f / %.2f"), -1 * StuckTime, UnstuckTime);
+			}
+		}
+
+		DebugMsg = FString::Printf(TEXT("State: %s"), *State);
+		GEngine->AddOnScreenDebugMessage(2, 0.0f, FColor::Cyan, DebugMsg);
 	}
 
 	/* STUCK / RECOVERY */
+	if (StuckTime < 0.0f)
+	{
+		// currently reversing
+		VehicleMovementComponent->SetTargetGear(-1, true); // reverse
+		VehicleMovementComponent->SetThrottleInput(1.0f);
+		VehicleMovementComponent->SetSteeringInput(- VehicleMovementComponent->GetSteeringInput());
+		VehicleMovementComponent->SetBrakeInput(0.0f);
+
+		StuckTime += DeltaTime;
+
+		if (StuckTime >= 0.0f) {
+			StuckTime = 0.0f;
+			VehicleMovementComponent->SetTargetGear(1, true); // forward
+		}
+
+		return;
+	}
 
 	// if we're practically still, update the stuck timer. Otherwise, reset it
-	if (FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) < 10.0f) // GetForwardSpeed() returns cm/s
+	if (FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) < 30.0f) // GetForwardSpeed() returns cm/s
 		StuckTime += DeltaTime;
 	else
 		StuckTime = 0.0f;
 
 	// if we're stuck for too long, initiate reversing
-	if (StuckTime >= MaxStuckTime)
+	if (StuckTime > MaxStuckTime)
 	{
-		bIsReversing = true;
-
-		// Set a timer to stop reversing after 1.5 seconds
-		FTimerHandle RecoveryTimer;
-		GetWorld()->GetTimerManager().SetTimer(RecoveryTimer, [this]() {
-			bIsReversing = false;
-			}, 5.0f, false);
-
-		// reverse full throttle with right steering
-		VehicleMovementComponent->SetThrottleInput(-1.0f);
-		VehicleMovementComponent->SetSteeringInput(1.0f);
-		VehicleMovementComponent->SetBrakeInput(0.0f);
+		StuckTime = -UnstuckTime;
+		ReverseSteerDirection = (FMath::RandBool()) ? 1.0f : -1.0f; // random direction
 		return;
 	}
 
@@ -175,4 +210,46 @@ void USplineFollowerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	VehicleMovementComponent->SetSteeringInput(SteeringInput);
 	VehicleMovementComponent->SetThrottleInput(ThrottleInput);
 	VehicleMovementComponent->SetBrakeInput(BrakeInput);
+
+	/* DEBUG */
+
+	// Vehicle's trail line
+	DrawDebugLine(
+		GetWorld(), // context
+		PreviousLocation, VehicleLocation, // start and end
+		FColor::Cyan,
+		false, // persistence
+		5.0f, // lifetime (s)
+		0, // depth priority, irrelevant here
+		5.0f // thickness
+	);
+
+	if (GEngine)
+	{
+		FString DebugMsg = FString::Printf(TEXT("Target Move Dist Sq: %.2f"), FVector::DistSquared(PreviousTarget, TargetLocation));
+		GEngine->AddOnScreenDebugMessage(4, 0.0f, FColor::Orange, DebugMsg);
+	}
+
+	// Target trail line
+	if (FVector::DistSquared(PreviousTarget, TargetLocation) > 100.0f) {
+		DrawDebugLine(
+			GetWorld(),
+			PreviousTarget, TargetLocation,
+			FColor::Green, false, -1.0f, 0, 5.0f
+		);
+		PreviousTarget = TargetLocation;
+	}
+
+	// Target point sphere
+	DrawDebugSphere(
+		GetWorld(), TargetLocation, // context and location
+		50.0f, // sphere's radius (cm)
+		10, // # segments in the sphere eg. 3 = pyramid end
+		// the following are the same params as line's (from color onward)
+		FColor::Green, false, 0.0f, 0, 10.0f
+	);
+
+	// we keep track of previous locations for debug lines
+	PreviousLocation = VehicleLocation;
+	//PreviousTarget = TargetLocation;
 }

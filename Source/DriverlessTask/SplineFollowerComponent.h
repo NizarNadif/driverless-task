@@ -51,9 +51,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
 	float BrakingSharpness = 0.8f;
 
-	// "stuck" time (near zero speed) before reversing.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
-	float MaxStuckTime = 2.0f;
+	// "stuck" time before reversing
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
+	float MaxStuckTime = 0.6f;
+
+	// reverse time to unstack (seconds)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
+	float UnstuckTime = 4.0f;
 
 protected:
 	// Called when the game starts
@@ -72,5 +76,9 @@ private:
 
 	// State variables for recovery
 	float StuckTime = 0.0f;
-	bool bIsReversing = false;
+	float ReverseSteerDirection = 1.0f;
+
+	// Debug: trail line
+	FVector PreviousLocation;
+	FVector PreviousTarget;
 };
