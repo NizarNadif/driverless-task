@@ -1,11 +1,7 @@
 # Car Simulation in Unreal Engine 5.6
 
-<br>
-<p align="center">
-    </em>
-    <img src="./task-demo.gif"/> <br />
-</p>
-<br>
+![Demo](task-demo.gif)
+
 
 ## Setup
 In order to manage the project with ease, even if the official libraries indicate to ignore them, it's important to manage the code warnings presented by default. The underlying problem with these warnings is that they clog the error list, because they're also notified as errors. To hide them, a suppression must be done at engine level, by creating a ```Directory.Build.props``` file in ```EpicGames/UE_<EngineVersion>/Engine/Source/Programs```, where the ```EpicGames``` directory is the root directory of the Unreal Engine installation. . The content of the file must be as follows:
