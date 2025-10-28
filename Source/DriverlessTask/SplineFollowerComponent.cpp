@@ -32,7 +32,6 @@ void USplineFollowerComponent::BeginPlay()
 	{
 		VehicleMovementComponent = Cast<UChaosVehicleMovementComponent>(OwnerPawn->GetMovementComponent());
 		PreviousLocation = OwnerPawn->GetActorLocation();
-		PreviousTarget = PreviousLocation;
 	}
 	else
 	{
@@ -279,7 +278,7 @@ bool USplineFollowerComponent::FindSafeAvoidancePath(float& OutHitDistance, FVec
 void USplineFollowerComponent::PrintTelemetry()
 {
 	if (!GEngine) return;
-	
+
 	FString DebugMsg;
 
 	/* STATE in key 1 */
@@ -295,22 +294,22 @@ void USplineFollowerComponent::PrintTelemetry()
 		}
 	}
 
-	DebugMsg = FString::Printf(TEXT("State: %s"), *State);
-	GEngine->AddOnScreenDebugMessage(1, 0.0f, FColor::Cyan, DebugMsg);
+	DebugMsg = FString::Printf(TEXT("Vehicle %d State: %s"), TelemetryDisplayIndex, *State);
+	GEngine->AddOnScreenDebugMessage(TelemetryDisplayIndex * 5 + 1, 0.0f, FColor::Cyan, DebugMsg);
 
 	/* SPEED in key 2 */
 	float CurrentSpeed = FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) * 0.036f; //km/h
 
-	DebugMsg = FString::Printf(TEXT("Speed: %.1f km/h"), CurrentSpeed);
-	GEngine->AddOnScreenDebugMessage(2, 0.0f, FColor::Yellow, DebugMsg);
+	DebugMsg = FString::Printf(TEXT("Vehicle %d Speed: %.1f km/h"), TelemetryDisplayIndex, CurrentSpeed);
+	GEngine->AddOnScreenDebugMessage(TelemetryDisplayIndex * 5 + 2, 0.0f, FColor::Yellow, DebugMsg);
 
 	/* STEERING in key 3 */
-	DebugMsg = FString::Printf(TEXT("Steering Input: %.2f"), VehicleMovementComponent->GetSteeringInput());
-	GEngine->AddOnScreenDebugMessage(3, 0.0f, FColor::Green, DebugMsg);
+	DebugMsg = FString::Printf(TEXT("Vehicle %d Steering: %.2f"), TelemetryDisplayIndex, VehicleMovementComponent->GetSteeringInput());
+	GEngine->AddOnScreenDebugMessage(TelemetryDisplayIndex * 5 + 3, 0.0f, FColor::Green, DebugMsg);
 
 	/* THROTTLE & BRAKE in key 4 */
-	DebugMsg = FString::Printf(TEXT("Throttle: %.2f | Brake: %.2f"), VehicleMovementComponent->GetThrottleInput(), VehicleMovementComponent->GetBrakeInput());
-	GEngine->AddOnScreenDebugMessage(4, 0.0f, FColor::Blue, DebugMsg);
+	DebugMsg = FString::Printf(TEXT("Vehicle %d Throttle: %.2f | Brake: %.2f"), TelemetryDisplayIndex, VehicleMovementComponent->GetThrottleInput(), VehicleMovementComponent->GetBrakeInput());
+	GEngine->AddOnScreenDebugMessage(TelemetryDisplayIndex * 5 + 4, 0.0f, FColor::Blue, DebugMsg);
 }
 
 bool USplineFollowerComponent::HandleStuckState(float DeltaTime)
@@ -376,16 +375,6 @@ void USplineFollowerComponent::SeeDebugTrails(const FVector& VehicleLocation, co
 		5.0f // thickness
 	);
 
-	// Target trail line
-	if (FVector::DistSquared(PreviousTarget, TargetLocation) > 100.0f) {
-		DrawDebugLine(
-			GetWorld(),
-			PreviousTarget, TargetLocation,
-			FColor::Green, false, -1.0f, 0, 5.0f
-		);
-		PreviousTarget = TargetLocation;
-	}
-
 	// Target point sphere
 	DrawDebugSphere(
 		GetWorld(), TargetLocation, // context and location
@@ -397,5 +386,4 @@ void USplineFollowerComponent::SeeDebugTrails(const FVector& VehicleLocation, co
 
 	// we keep track of previous locations for debug lines
 	PreviousLocation = VehicleLocation;
-	PreviousTarget = TargetLocation;
 }

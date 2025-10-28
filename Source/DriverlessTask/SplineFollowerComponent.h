@@ -80,6 +80,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
 	float UnstuckTime = 2.0f;
 
+	/* TELEMETRY PARAMS */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Telemetry")
+	int32 TelemetryDisplayIndex = 0;
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -102,7 +106,6 @@ private:
 
 	// Debug: trail line
 	FVector PreviousLocation;
-	FVector PreviousTarget;
 
 	void PrintTelemetry();
 	bool HandleStuckState(float DeltaTime);
