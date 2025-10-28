@@ -51,6 +51,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Tuning")
 	float BrakingSharpness = 0.8f;
 
+	/* OBSTACLE AVOIDANCE PARAMS */
+
+	// How far ahead the vehicle looks for obstacles (cm)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance")
+	float ObstacleTraceDistance = 500.0f;
+
+	// radius of the sphere trace used for obstacle detection (cm)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance", meta = (ClampMin = "10.0"))
+	float ObstacleTraceRadius = 220.0f;
+
+	// How strongly the vehicle steers away from obstacles. Higher values = sharper turns.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance")
+	float AvoidanceStrength = 2.5f;
+
+
+	/* STUCK RECOVERY PARAMS */
+
 	// "stuck" time before reversing
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
 	float MaxStuckTime = 0.6f;
@@ -81,4 +98,9 @@ private:
 	// Debug: trail line
 	FVector PreviousLocation;
 	FVector PreviousTarget;
+
+	float CalculateAvoidanceSteering(float& OutAvoidanceFactor);
+	void PrintTelemetry();
+	bool HandleStuckState(float DeltaTime);
+	void SeeDebugTrails(const FVector& VehicleLocation, const FVector& TargetLocation);
 };
