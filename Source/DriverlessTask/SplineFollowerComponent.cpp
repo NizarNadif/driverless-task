@@ -146,41 +146,39 @@ void USplineFollowerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	FVector TargetLocation = SplineToFollow->GetLocationAtDistanceAlongSpline(CurrentDistance + SteeringLookAhead, ESplineCoordinateSpace::World);
 
 	// Calculate steering input
-	const FVector DirectionToTarget = (TargetLocation - VehicleLocation).GetSafeNormal();
+	FVector DirectionToTarget = (TargetLocation - VehicleLocation).GetSafeNormal();
+
+	/* OBSTACLE AVOIDANCE */
+	float ObstacleHitDistance = ObstacleTraceDistance;
+	FVector SafeDirection = VehicleForward;
+	float AvoidanceFactor = 0.0f;
+	// float AvoidanceSteering = CalculateAvoidanceSteering(AvoidanceFactor);
+	bool isAvoiding = FindSafeAvoidancePath(ObstacleHitDistance, SafeDirection);
+	
+	// proportionally blend steering and braking based on distance to obstacle, if any
+	if (isAvoiding) {
+
+		AvoidanceFactor = FMath::Clamp(1.0f - (ObstacleHitDistance / ObstacleTraceDistance), 0.0f, 1.0f);
+		DirectionToTarget = FMath::Lerp(VehicleForward, SafeDirection, AvoidanceStrength).GetSafeNormal();
+	}
+
 	const FVector CrossProduct = FVector::CrossProduct(VehicleForward, DirectionToTarget);
-	float SplineSteering = FMath::Clamp(CrossProduct.Z, -1.0f, 1.0f);
+	float SteeringInput = FMath::Clamp(CrossProduct.Z, -1.0f, 1.0f);
 
 	// 180° stall correction
-	if (FMath::IsNearlyZero(SplineSteering, 0.01f))
+	if (FMath::IsNearlyZero(SteeringInput, 0.01f))
 	{
 		if (FVector::DotProduct(VehicleForward, DirectionToTarget) < 0.0f) // if facing backwards
 		{
 			// determine which direction to turn
 			FVector RightVector = OwnerPawn->GetActorRightVector();
 			float RightDot = FVector::DotProduct(RightVector, DirectionToTarget);
-			SplineSteering = (RightDot >= 0.0f) ? 1.0f : -1.0f; // turn right or left
+			SteeringInput = (RightDot >= 0.0f) ? 1.0f : -1.0f; // turn right or left
 		}
 	}
 
-	/* OBSTACLE AVOIDANCE */
-	float AvoidanceFactor = 0.0f;
-	float AvoidanceSteering = CalculateAvoidanceSteering(AvoidanceFactor);
-
 	// Combine path following and obstacle avoidance
-	float SteeringInput = SplineSteering;
-	float AvoidanceBrake = CurvatureBrake;
-	
-	// proportionally blend steering and braking based on distance to obstacle, if any
-	if (AvoidanceFactor > 0.1f) {
-
-		// If avoidance factor is high, prioritize avoidance steering completely.
-		// Blend only when avoidance factor is lower.
-		float BlendAlpha = FMath::Clamp(AvoidanceFactor * 1.5f, 0.0f, 1.0f);
-		SteeringInput = FMath::Lerp(SplineSteering, AvoidanceSteering * AvoidanceStrength, BlendAlpha);
-		SteeringInput = FMath::Clamp(SteeringInput, -1.0f, 1.0f);
-
-		AvoidanceBrake = FMath::Lerp(0.0f, 0.6f, FMath::Clamp((AvoidanceFactor - 0.7f) * 3.33f, 0.0f, 1.0f));
-	}
+	float AvoidanceBrake = FMath::Lerp(0.0f, 0.8f, FMath::Clamp((AvoidanceFactor - 0.6f) * 2.5f, 0.0f, 1.0f));;
 
 	/* FINAL THROTTLE AND BRAKE */
 
@@ -188,7 +186,7 @@ void USplineFollowerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	float ReactiveThrottle = 1.0f - (FMath::Abs(SteeringInput) * 0.8f);
 	// combine throttle factors (steering and predictive braking)
 	// minimum throttle reduced based on avoidance factor
-	float ThrottleInput = FMath::Min(PredictiveThrottle, ReactiveThrottle) * FMath::Lerp(1.0f, 0.4f, AvoidanceFactor);
+	float ThrottleInput = FMath::Min(PredictiveThrottle, ReactiveThrottle) * FMath::Lerp(1.0f, 0.2f, AvoidanceFactor);
 
 	float BrakeInput = FMath::Max(CurvatureBrake, AvoidanceBrake);
 
@@ -200,74 +198,82 @@ void USplineFollowerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	// SeeDebugTrails(VehicleLocation, TargetLocation);
 }
 
-float USplineFollowerComponent::CalculateAvoidanceSteering(float& OutAvoidanceFactor)
+bool USplineFollowerComponent::FindSafeAvoidancePath(float& OutHitDistance, FVector& OutSafeDirection)
 {
-	OutAvoidanceFactor = 0.0f; // Default to no avoidance
-	float CalculatedAvoidanceSteering = 0.0f;
+	OutHitDistance = ObstacleTraceDistance; // assume clear initially
+	OutSafeDirection = OwnerPawn->GetActorForwardVector(); // it goes forward by default
+	bool obstacleDetected = false;
 
-	// Basic safety check
 	if (ObstacleTraceDistance <= 0.0f || ObstacleTraceRadius <= 0.0f)
-		return 0.0f;
+		return false;
 
 	const FVector VehicleLocation = OwnerPawn->GetActorLocation();
 	const FVector VehicleForward = OwnerPawn->GetActorForwardVector();
 
-	// Trace start slightly in front and higher up to avoid ground hits
 	const float StartForwardOffset = 150.0f;
-	const float StartUpOffset = FMath::Max(ObstacleTraceRadius, 150.0f);
-	const FVector TraceStart = VehicleLocation + (VehicleForward * StartForwardOffset) + (FVector::UpVector * StartUpOffset);
-	
-	const FVector TraceEnd = TraceStart + VehicleForward * ObstacleTraceDistance;
+	const float StartUpOffset = FMath::Max(ObstacleTraceRadius, 200.0f);
+	const FVector TraceStart = VehicleLocation + (VehicleForward * StartForwardOffset) + FVector::UpVector * StartUpOffset;
 
-	FHitResult HitResult;
+	FHitResult CenterHit, LeftHit, RightHit;
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(OwnerPawn);
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(OwnerPawn);
 
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
 
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(OwnerPawn);
+	EDrawDebugTrace::Type DebugDrawType = EDrawDebugTrace::ForOneFrame;
 
-	bool hit = UKismetSystemLibrary::SphereTraceSingleForObjects(
-		GetWorld(),
-		TraceStart,
-		TraceEnd,
-		ObstacleTraceRadius,
-		ObjectTypes,
-		false, // bTraceComplex
-		ActorsToIgnore,
-		EDrawDebugTrace::ForDuration, // Draw debug sphere
-		HitResult,
-		true, // bIgnoreSelf
-		FLinearColor::Green,  // Trace color
-		FLinearColor::Red, // Hit color
-		0.2f // Debug duration
-	);
+	// 1. Center Trace
+	const FVector CenterTraceEnd = TraceStart + VehicleForward * ObstacleTraceDistance;
+	bool bCenterHit = UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), TraceStart, CenterTraceEnd, ObstacleTraceRadius, ObjectTypes, false, ActorsToIgnore, DebugDrawType, CenterHit, true, FLinearColor::Yellow, FLinearColor::Red, 0.1f);
+	if (bCenterHit) OutHitDistance = FMath::Min(OutHitDistance, CenterHit.Distance);
 
-	if (hit)
+	// 2. Left Probe Trace
+	const FVector LeftDirection = VehicleForward.RotateAngleAxis(-AvoidanceProbeAngle, FVector::UpVector);
+	const FVector LeftTraceEnd = TraceStart + LeftDirection * ObstacleTraceDistance;
+	bool bLeftHit = UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), TraceStart, LeftTraceEnd, ObstacleTraceRadius, ObjectTypes, false, ActorsToIgnore, DebugDrawType, LeftHit, true, FLinearColor::Blue, FLinearColor::Red, 0.1f);
+	if (bLeftHit) OutHitDistance = FMath::Min(OutHitDistance, LeftHit.Distance);
+
+	// 3. Right Probe Trace
+	const FVector RightDirection = VehicleForward.RotateAngleAxis(AvoidanceProbeAngle, FVector::UpVector);
+	const FVector RightTraceEnd = TraceStart + RightDirection * ObstacleTraceDistance;
+	bool bRightHit = UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), TraceStart, RightTraceEnd, ObstacleTraceRadius, ObjectTypes, false, ActorsToIgnore, DebugDrawType, RightHit, true, FLinearColor::MakeRandomColor(), FLinearColor::Red, 0.1f);
+	if (bRightHit) OutHitDistance = FMath::Min(OutHitDistance, RightHit.Distance);
+
+	obstacleDetected = bCenterHit || bLeftHit || bRightHit;
+
+	if (obstacleDetected)
 	{
-		// Calculate strength based on inverse distance
-		OutAvoidanceFactor = FMath::Clamp(1.0f - (HitResult.Distance / ObstacleTraceDistance), 0.0f, 1.0f);
+		// choose safe direction
+		float LeftDist = bLeftHit ? LeftHit.Distance : ObstacleTraceDistance;
+		float RightDist = bRightHit ? RightHit.Distance : ObstacleTraceDistance;
 
-		// Calculate steering direction based on hit location relative to forward vector
-		FVector DirectionToHit = HitResult.ImpactPoint - TraceStart;
-		DirectionToHit.Normalize();
+		// move either left or right, based on which side has more space
+		if (LeftDist > RightDist + KINDA_SMALL_NUMBER)
+		{
+			OutSafeDirection = LeftDirection;
+			if (GEngine) GEngine->AddOnScreenDebugMessage(5, 0.0f, FColor::Cyan, TEXT("AVOID: Steering Left"));
+		}
+		else if (RightDist > LeftDist + KINDA_SMALL_NUMBER)
+		{
+			OutSafeDirection = RightDirection;
+			if (GEngine) GEngine->AddOnScreenDebugMessage(5, 0.0f, FColor::Cyan, TEXT("AVOID: Steering Right"));
+		}
+		else // If both sides are blocked similarly (or center is blocked but sides are clear)
+		{
+			// Default to turning towards the side with slightly more space, or pick one if equal
+			OutSafeDirection = (LeftDist >= RightDist) ? LeftDirection : RightDirection;
 
-		FVector Cross = FVector::CrossProduct(VehicleForward, DirectionToHit);
-
-		if (FMath::Abs(Cross.Z) < 0.1f) // Near-center hit
-			CalculatedAvoidanceSteering = 1.0f * OutAvoidanceFactor; // Default steer right
-		else
-			CalculatedAvoidanceSteering = -FMath::Sign(Cross.Z) * OutAvoidanceFactor; // Steer away
-
-		// Clamp the steering result
-		CalculatedAvoidanceSteering = FMath::Clamp(CalculatedAvoidanceSteering, -1.0f, 1.0f);
+			if (GEngine) GEngine->AddOnScreenDebugMessage(5, 0.0f, FColor::Cyan, FString::Printf(TEXT("AVOID: Center blocked, choosing %s"), (LeftDist >= RightDist) ? TEXT("Left") : TEXT("Right")));
+		}
 	}
+	// If !obstacleDetected, OutSafeDirection remains VehicleForward
 
-	return CalculatedAvoidanceSteering;
+	return obstacleDetected;
 }
 
 void USplineFollowerComponent::PrintTelemetry()
@@ -313,7 +319,7 @@ bool USplineFollowerComponent::HandleStuckState(float DeltaTime)
 	{
 		VehicleMovementComponent->SetTargetGear(-1, true); // reverse
 		VehicleMovementComponent->SetThrottleInput(1.0f);
-		VehicleMovementComponent->SetSteeringInput(VehicleMovementComponent->GetSteeringInput());
+		VehicleMovementComponent->SetSteeringInput(-VehicleMovementComponent->GetSteeringInput());
 		VehicleMovementComponent->SetBrakeInput(0.0f);
 
 		StuckTime += DeltaTime;
@@ -321,13 +327,15 @@ bool USplineFollowerComponent::HandleStuckState(float DeltaTime)
 		if (StuckTime >= 0.0f) {
 			StuckTime = 0.0f;
 			VehicleMovementComponent->SetTargetGear(1, true); // forward
+			VehicleMovementComponent->SetThrottleInput(1.0f);
 		}
 
 		return true;
 	}
 
+	const float StuckSpeedTreshold = 30.0f; // cm/s
 	// if we're practically still, update the stuck timer. Otherwise, reset it
-	if (FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) < 30.0f) // cm/s
+	if (FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) < StuckSpeedTreshold)
 		StuckTime += DeltaTime;
 	else
 		StuckTime = 0.0f;
@@ -336,7 +344,6 @@ bool USplineFollowerComponent::HandleStuckState(float DeltaTime)
 	if (StuckTime > MaxStuckTime)
 	{
 		StuckTime = -UnstuckTime;
-		ReverseSteerDirection = (FMath::RandBool()) ? 1.0f : -1.0f; // random direction
 		return true;
 	}
 

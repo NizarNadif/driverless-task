@@ -55,26 +55,30 @@ public:
 
 	// How far ahead the vehicle looks for obstacles (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance")
-	float ObstacleTraceDistance = 500.0f;
+	float ObstacleTraceDistance = 1000.0f;
 
 	// radius of the sphere trace used for obstacle detection (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance", meta = (ClampMin = "10.0"))
 	float ObstacleTraceRadius = 220.0f;
 
+	// angle (in degrees) of the avoidance probes (left and right)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance")
+	float AvoidanceProbeAngle = 30.0f;
+
 	// How strongly the vehicle steers away from obstacles. Higher values = sharper turns.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Obstacle Avoidance")
-	float AvoidanceStrength = 2.5f;
+	float AvoidanceStrength = 3.0f;
 
 
 	/* STUCK RECOVERY PARAMS */
 
 	// "stuck" time before reversing
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
-	float MaxStuckTime = 0.6f;
+	float MaxStuckTime = 3.0f;
 
 	// reverse time to unstack (seconds)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
-	float UnstuckTime = 4.0f;
+	float UnstuckTime = 2.0f;
 
 protected:
 	// Called when the game starts
@@ -91,16 +95,15 @@ private:
 	UPROPERTY()
 	USplineComponent* SplineToFollow;
 
-	// State variables for recovery
+	// State variable for recovery
 	float StuckTime = 0.0f;
-	float ReverseSteerDirection = 1.0f;
 
 	// Debug: trail line
 	FVector PreviousLocation;
 	FVector PreviousTarget;
 
-	float CalculateAvoidanceSteering(float& OutAvoidanceFactor);
 	void PrintTelemetry();
 	bool HandleStuckState(float DeltaTime);
 	void SeeDebugTrails(const FVector& VehicleLocation, const FVector& TargetLocation);
+	bool FindSafeAvoidancePath(float& OutHitDistance, FVector& OutSafeDirection);
 };
