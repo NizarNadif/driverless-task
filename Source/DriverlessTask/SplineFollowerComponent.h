@@ -74,7 +74,7 @@ public:
 
 	// "stuck" time before reversing
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
-	float MaxStuckTime = 3.0f;
+	float MaxStuckTime = 2.0f;
 
 	// reverse time to unstack (seconds)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Stuck")
@@ -97,6 +97,8 @@ private:
 
 	// State variable for recovery
 	float StuckTime = 0.0f;
+	float RecoverySteer = 0.0f;
+	bool isPostRecovery = false;
 
 	// Debug: trail line
 	FVector PreviousLocation;

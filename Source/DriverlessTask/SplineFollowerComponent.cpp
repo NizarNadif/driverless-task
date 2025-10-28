@@ -195,7 +195,7 @@ void USplineFollowerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	VehicleMovementComponent->SetThrottleInput(ThrottleInput);
 	VehicleMovementComponent->SetBrakeInput(BrakeInput);
 
-	// SeeDebugTrails(VehicleLocation, TargetLocation);
+	SeeDebugTrails(VehicleLocation, TargetLocation);
 }
 
 bool USplineFollowerComponent::FindSafeAvoidancePath(float& OutHitDistance, FVector& OutSafeDirection)
@@ -319,21 +319,33 @@ bool USplineFollowerComponent::HandleStuckState(float DeltaTime)
 	{
 		VehicleMovementComponent->SetTargetGear(-1, true); // reverse
 		VehicleMovementComponent->SetThrottleInput(1.0f);
-		VehicleMovementComponent->SetSteeringInput(-VehicleMovementComponent->GetSteeringInput());
+		VehicleMovementComponent->SetSteeringInput(RecoverySteer);
 		VehicleMovementComponent->SetBrakeInput(0.0f);
 
 		StuckTime += DeltaTime;
 
 		if (StuckTime >= 0.0f) {
-			StuckTime = 0.0f;
+			StuckTime = MaxStuckTime / 2;
+			isPostRecovery = true;
 			VehicleMovementComponent->SetTargetGear(1, true); // forward
-			VehicleMovementComponent->SetThrottleInput(1.0f);
 		}
 
 		return true;
 	}
 
-	const float StuckSpeedTreshold = 30.0f; // cm/s
+	if (StuckTime > 0.0f && isPostRecovery) {
+		// after recovery, drive forward for a short while
+		StuckTime -= DeltaTime;
+
+		if (StuckTime <= 0.0f) {
+			StuckTime = 0.0f;
+			isPostRecovery = false;
+			VehicleMovementComponent->SetThrottleInput(0.0f);
+		}
+		return true;
+	}
+
+	const float StuckSpeedTreshold = 0.5f; // cm/s
 	// if we're practically still, update the stuck timer. Otherwise, reset it
 	if (FMath::Abs(VehicleMovementComponent->GetForwardSpeed()) < StuckSpeedTreshold)
 		StuckTime += DeltaTime;
@@ -344,6 +356,7 @@ bool USplineFollowerComponent::HandleStuckState(float DeltaTime)
 	if (StuckTime > MaxStuckTime)
 	{
 		StuckTime = -UnstuckTime;
+		RecoverySteer = (FMath::RandBool()) ? 1.0f : -1.0f;
 		return true;
 	}
 
